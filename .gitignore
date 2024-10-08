@@ -1,2 +1,6 @@
 .**venv
 .api_key
+
+/notebooks/mta_bus_data
+/notebooks/mta_turnstile_data
+/notebooks/fetch_state.json
