@@ -14,8 +14,8 @@ This repository contains code and data for predicting MTA ridership using weathe
 ## TODO:
 
 - [x] look at several other parameters from weather data
-- [ ] better detrending accounts for holidays
 - [ ] pearson correlation and spearman correlation
 - [ ] seperate out weekends and weekdays
 - [ ] remove holidays (and surrounding days)
 - [ ] consider looking at piecewise trends along weather axis
+- [ ] piecewise of wind and discomfort index. look at piecewise!!
