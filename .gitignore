@@ -1,6 +1,9 @@
+# Virtual environment
 .**venv
+
+# API key
 .api_key
 
-/notebooks/mta_bus_data
-/notebooks/mta_turnstile_data
+# Pulled API data
+/notebooks/mta_*_data
 /notebooks/fetch_state.json
