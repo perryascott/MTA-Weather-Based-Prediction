@@ -7,3 +7,6 @@
 # Pulled API data
 /notebooks/mta_*_data
 /notebooks/fetch_state.json
+
+__pycache__
+.DS_Store
