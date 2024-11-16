@@ -1,5 +1,12 @@
 import pandas as pd
 
+def filter_df_by_hour_range(df, hour_range):
+    if isinstance(hour_range, int):
+        df = df[df['hour'].dt.hour == hour_range]
+    elif isinstance(hour_range, tuple) and len(hour_range) == 2:
+        df = df[(df['hour'].dt.hour >= hour_range[0]) & (df['hour'].dt.hour < hour_range[1])]
+    return df
+
 def split_df_at_datetime(df, split_datetime, is_weather=False):
     """
     Split a dataframe into two parts at the specified datetime

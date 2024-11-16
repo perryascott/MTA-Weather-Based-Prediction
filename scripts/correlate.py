@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scripts.filter import filter_df_by_hour_range
 
 def analyze_weather_impact(combined_df, lag=0, start_date=None, end_date=None, hour_range=None, is_weekend=None, plot=False):
     
@@ -24,11 +25,7 @@ def analyze_weather_impact(combined_df, lag=0, start_date=None, end_date=None, h
 
     # Filter data for the specified hour range
     if hour_range:
-        if isinstance(hour_range, int):
-            combined_df_lagged = combined_df_lagged[combined_df_lagged['hour'].dt.hour == hour_range]
-        elif isinstance(hour_range, tuple) and len(hour_range) == 2:
-            start_hour, end_hour = hour_range
-            combined_df_lagged = combined_df_lagged[(combined_df_lagged['hour'].dt.hour >= start_hour) & (combined_df_lagged['hour'].dt.hour < end_hour)]
+        combined_df_lagged = filter_df_by_hour_range(combined_df_lagged, hour_range)
 
     # Filter data for weekday/weekend
     if is_weekend is not None:
