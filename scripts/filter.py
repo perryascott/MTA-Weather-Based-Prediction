@@ -7,6 +7,24 @@ def filter_df_by_hour_range(df, hour_range):
         df = df[(df['hour'].dt.hour >= hour_range[0]) & (df['hour'].dt.hour < hour_range[1])]
     return df
 
+def filter_date_range(data, season='all', day_type='all', hour_range=None):
+    """
+    Filter data based on the given conditions.
+    """
+    model_data = data.copy()
+    
+    # Apply hour range filter if specified
+    if hour_range is not None:
+        model_data = filter_df_by_hour_range(model_data, hour_range)
+    
+    if season != 'all':
+        model_data = model_data[model_data['season'] == season]
+    if day_type != 'all':
+        is_weekend = 1 if day_type == 'weekend' else 0
+        model_data = model_data[model_data['is_weekend'] == is_weekend]
+    
+    return model_data
+
 def split_df_at_datetime(df, split_datetime, is_weather=False):
     """
     Split a dataframe into two parts at the specified datetime

@@ -1,0 +1,172 @@
+from abc import ABC, abstractmethod
+import statsmodels.api as sm
+from statsmodels.robust.robust_linear_model import RLM
+from statsmodels.regression.quantile_regression import QuantReg
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+from scripts.filter import filter_date_range
+
+def run_model_analysis(models, train_data, mode, season, day_type, hours, val_data=None):
+
+    # Filter data as before
+    train_data = filter_date_range(train_data, season, day_type, hours)
+    val_data = filter_date_range(val_data, season, day_type, hours) if val_data is not None else None
+    
+    results = {}
+    for name, model in models.items():
+        
+        # Store results
+        results[name] = model.fit_and_evaluate(train_data=train_data, val_data=val_data, mode=mode)
+    
+    return results
+
+class Model(ABC):
+    """Abstract base class for all models."""
+    
+    def __init__(self, features=None):
+        self.features = features or [
+            'Temperature (°F)',
+            'Precipitation (in)',
+            'Relative Humidity (%)',
+            'Cloud Cover (%)',
+            'Pressure (inHg)'
+        ]
+        self.model = None
+        self.scaler = None
+    
+    def prepare_data(self, data, mode, add_constant=True):
+        """Prepare X and y data for modeling."""
+        y = data[f'{mode}_residual']
+        X = data[self.features]
+        
+        if add_constant:
+            X = sm.add_constant(X)
+        
+        return X, y
+    
+    @abstractmethod
+    def fit(self, X, y):
+        """Fit the model to the data."""
+        pass
+    
+    @abstractmethod
+    def predict(self, X):
+        """Make predictions using the fitted model."""
+        pass
+    
+    def evaluate(self, y_true, y_pred):
+        """Evaluate model performance with common metrics."""
+        return {
+            "MAE": mean_absolute_error(y_true, y_pred),
+            "MSE": mean_squared_error(y_true, y_pred),
+            "R-squared": r2_score(y_true, y_pred)
+        }
+    
+    def fit_and_evaluate(self, train_data, val_data=None, mode='subway'):
+        """Fit model on training data and evaluate on both train and validation sets."""
+        # Prepare training data
+        X_train, y_train = self.prepare_data(train_data, mode)
+        
+        # Fit model on training data
+        self.fit(X_train, y_train)
+        
+        # Make predictions and evaluate on training set
+        y_train_pred = self.predict(X_train)
+        train_metrics = self.evaluate(y_train, y_train_pred)
+        
+        res = {
+            'model': self,
+            'train_metrics': train_metrics,
+            'summary': self.summary
+        }
+        
+        # If validation data provided, evaluate on that too
+        if val_data is not None:
+            X_val, y_val = self.prepare_data(val_data, mode)
+            y_val_pred = self.predict(X_val)
+            val_metrics = self.evaluate(y_val, y_val_pred)
+            res['val_metrics'] = val_metrics
+
+        return res
+    
+    @property
+    @abstractmethod
+    def summary(self):
+        """Return model summary or feature importance."""
+        pass
+
+class GLMModel(Model):
+    """Gaussian GLM implementation."""
+    
+    def fit(self, X, y):
+        self.model = sm.GLM(y, X, family=sm.families.Gaussian())
+        self.results = self.model.fit()
+        return self
+    
+    def predict(self, X):
+        return self.results.predict(X)
+    
+    @property
+    def summary(self):
+        return self.results.summary().tables[1]
+
+class QuantileModel(Model):
+    """Quantile Regression implementation."""
+    
+    def __init__(self, features=None, quantile=0.5):
+        super().__init__(features)
+        self.quantile = quantile
+    
+    def fit(self, X, y):
+        self.model = QuantReg(y, X)
+        self.results = self.model.fit(q=self.quantile)
+        return self
+    
+    def predict(self, X):
+        return self.results.predict(X)
+    
+    @property
+    def summary(self):
+        return self.results.summary().tables[1]
+
+class RobustModel(Model):
+    """Robust Regression implementation."""
+    
+    def fit(self, X, y):
+        self.model = RLM(y, X, M=sm.robust.norms.HuberT())
+        self.results = self.model.fit()
+        return self
+    
+    def predict(self, X):
+        return self.results.predict(X)
+    
+    @property
+    def summary(self):
+        return self.results.summary().tables[1]
+
+class GradientBoostingModel(Model):
+    """Gradient Boosting implementation."""
+    
+    def __init__(self, features=None, **kwargs):
+        super().__init__(features)
+        self.scaler = StandardScaler()
+        self.model = GradientBoostingRegressor(
+            loss='absolute_error',
+            random_state=42,
+            **kwargs
+        )
+    
+    def fit(self, X, y):
+        X_scaled = self.scaler.fit_transform(X)
+        self.model.fit(X_scaled, y)
+        return self
+    
+    def predict(self, X):
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
+    
+    @property
+    def summary(self):
+        return dict(zip(self.features, self.model.feature_importances_))
