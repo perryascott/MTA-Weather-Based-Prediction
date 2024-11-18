@@ -3,8 +3,10 @@ import statsmodels.api as sm
 from statsmodels.robust.robust_linear_model import RLM
 from statsmodels.regression.quantile_regression import QuantReg
 from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+import xgboost as xgb
 
 from scripts.filter import filter_date_range
 
@@ -75,10 +77,13 @@ class Model(ABC):
         # Make predictions and evaluate on training set
         y_train_pred = self.predict(X_train)
         train_metrics = self.evaluate(y_train, y_train_pred)
+
+        residual_name = f'{mode}_residual'
         
         res = {
             'model': self,
             'train_metrics': train_metrics,
+            'train_residual': train_data[residual_name],
             'summary': self.summary
         }
         
@@ -88,7 +93,7 @@ class Model(ABC):
             y_val_pred = self.predict(X_val)
             val_metrics = self.evaluate(y_val, y_val_pred)
             res['val_metrics'] = val_metrics
-
+            res['val_residual'] = val_data[residual_name]
         return res
     
     @property
@@ -146,6 +151,27 @@ class RobustModel(Model):
     def summary(self):
         return self.results.summary().tables[1]
 
+class LinearModel(Model):
+    """Linear Regression implementation."""
+    
+    def __init__(self, features=None):
+        super().__init__(features)
+        self.scaler = StandardScaler()
+        self.model = LinearRegression()
+    
+    def fit(self, X, y):
+        X_scaled = self.scaler.fit_transform(X)
+        self.model.fit(X_scaled, y)
+        return self
+    
+    def predict(self, X):
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
+    
+    @property
+    def summary(self):
+        return dict(zip(self.features, self.model.coef_[1:]))
+
 class GradientBoostingModel(Model):
     """Gradient Boosting implementation."""
     
@@ -157,6 +183,37 @@ class GradientBoostingModel(Model):
             random_state=42,
             **kwargs
         )
+    
+    def fit(self, X, y):
+        X_scaled = self.scaler.fit_transform(X)
+        self.model.fit(X_scaled, y)
+        return self
+    
+    def predict(self, X):
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
+    
+    @property
+    def summary(self):
+        return dict(zip(self.features, self.model.feature_importances_))
+
+class XGBoostModel(Model):
+    """XGBoost implementation."""
+    
+    def __init__(self, features=None, **kwargs):
+        super().__init__(features)
+        self.scaler = StandardScaler()
+        # Default parameters that work well for many regression tasks
+        default_params = {
+            'objective': 'reg:squarederror',
+            'learning_rate': 0.1,
+            'max_depth': 6,
+            'n_estimators': 10,
+            'random_state': 42
+        }
+        # Override defaults with any provided kwargs
+        default_params.update(kwargs)
+        self.model = xgb.XGBRegressor(**default_params)
     
     def fit(self, X, y):
         X_scaled = self.scaler.fit_transform(X)
