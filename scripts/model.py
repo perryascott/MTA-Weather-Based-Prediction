@@ -7,14 +7,15 @@ from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import xgboost as xgb
-
+from enum import Enum
+import numpy as np
 from scripts.filter import filter_date_range
 
-def run_model_analysis(models, train_data, mode, season, day_type, hours, val_data=None):
+def run_model_analysis(models, train_data, mode, time_interval, val_data=None):
 
     # Filter data as before
-    train_data = filter_date_range(train_data, season, day_type, hours)
-    val_data = filter_date_range(val_data, season, day_type, hours) if val_data is not None else None
+    train_data = time_interval.filter(train_data)
+    val_data = time_interval.filter(val_data) if val_data is not None else None
     
     results = {}
     for name, model in models.items():
@@ -24,24 +25,32 @@ def run_model_analysis(models, train_data, mode, season, day_type, hours, val_da
     
     return results
 
+class ModelParameters(Enum):
+    TEMPERATURE = 'Temperature (°F)'
+    PRECIPITATION = 'Precipitation (in)'
+    HUMIDITY = 'Relative Humidity (%)'
+    CLOUD_COVER = 'Cloud Cover (%)'
+    PRESSURE = 'Pressure (inHg)'
+
 class Model(ABC):
     """Abstract base class for all models."""
     
     def __init__(self, features=None):
         self.features = features or [
-            'Temperature (°F)',
-            'Precipitation (in)',
-            'Relative Humidity (%)',
-            'Cloud Cover (%)',
-            'Pressure (inHg)'
+            ModelParameters.TEMPERATURE,
+            ModelParameters.PRECIPITATION,
+            ModelParameters.HUMIDITY,
+            ModelParameters.CLOUD_COVER,
+            ModelParameters.PRESSURE
         ]
         self.model = None
         self.scaler = None
     
-    def prepare_data(self, data, mode, add_constant=True):
+    def prepare_data(self, data, mode, add_constant=False):
         """Prepare X and y data for modeling."""
         y = data[f'{mode}_residual']
-        X = data[self.features]
+        features = [feature.value for feature in self.features]
+        X = data[features]
         
         if add_constant:
             X = sm.add_constant(X)
@@ -227,3 +236,24 @@ class XGBoostModel(Model):
     @property
     def summary(self):
         return dict(zip(self.features, self.model.feature_importances_))
+
+class NaiveModel(Model):
+    """Simple model that predicts a constant value that minimizes MSE on training data."""
+    
+    def __init__(self, features=None):
+        super().__init__(features)
+        self.optimal_value = None
+    
+    def fit(self, X, y):
+        # For MSE loss, the optimal constant prediction is the mean
+        # This minimizes sum((y - c)^2) where c is our constant prediction
+        self.optimal_value = y.mean()
+        return self
+    
+    def predict(self, X):
+        return np.full(len(X), self.optimal_value)
+    
+    @property 
+    def summary(self):
+        return {"optimal_value": self.optimal_value}
+

@@ -1,5 +1,31 @@
 import pandas as pd
 
+class TimeInterval():
+
+    def __init__(self, season, day_type, hour_range):
+        self.season = season
+        self.day_type = day_type
+        self.hour_range = hour_range
+
+    def filter(self, df):
+        model_data = df.copy()
+        
+        # Apply hour range filter if specified
+        if self.hour_range is not None:
+            model_data = filter_df_by_hour_range(model_data, self.hour_range)
+        
+        if self.season != 'all':
+            model_data = model_data[model_data['season'] == self.season]
+        if self.day_type != 'all':
+            is_weekend = 1 if self.day_type == 'weekend' else 0
+            model_data = model_data[model_data['is_weekend'] == is_weekend]
+        
+        return model_data
+    
+    @property
+    def summary(self):
+        return f"{self.season} {self.day_type} {self.hour_range}"
+
 def filter_df_by_hour_range(df, hour_range):
     if isinstance(hour_range, int):
         df = df[df['hour'].dt.hour == hour_range]
