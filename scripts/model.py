@@ -11,6 +11,9 @@ from enum import Enum
 import numpy as np
 from scripts.filter import filter_date_range
 
+def get_average_residual(data, mode):
+    return np.mean(np.abs(data[f'{mode}_residual']))
+
 def run_model_analysis(models, train_data, mode, time_interval, val_data=None):
 
     # Filter data as before
@@ -93,6 +96,7 @@ class Model(ABC):
             'model': self,
             'train_metrics': train_metrics,
             'train_residual': train_data[residual_name],
+            'train_residual_mean': get_average_residual(train_data, mode),
             'summary': self.summary
         }
         
@@ -103,7 +107,11 @@ class Model(ABC):
             val_metrics = self.evaluate(y_val, y_val_pred)
             res['val_metrics'] = val_metrics
             res['val_residual'] = val_data[residual_name]
+            res['val_residual_mean'] = get_average_residual(val_data, mode)
         return res
+    
+    def update_features(self, features):
+        self.features = features
     
     @property
     @abstractmethod
@@ -149,12 +157,22 @@ class RobustModel(Model):
     """Robust Regression implementation."""
     
     def fit(self, X, y):
+        # print("Fitting Robust Model:")
+        # print("X shape:", X.shape)
+        # print("Sample of X:", X.head())
+        # print("y shape:", y.shape)
+        # print("Sample of y:", y.head())
         self.model = RLM(y, X, M=sm.robust.norms.HuberT())
         self.results = self.model.fit()
+
+        # Print model coefficients
+        # print("Model coefficients:", self.results.params)
+        
         return self
     
     def predict(self, X):
-        return self.results.predict(X)
+        predictions = self.results.predict(X)
+        return predictions
     
     @property
     def summary(self):
@@ -171,6 +189,7 @@ class LinearModel(Model):
     def fit(self, X, y):
         X_scaled = self.scaler.fit_transform(X)
         self.model.fit(X_scaled, y)
+        # print("Linear model summary: ", self.summary)
         return self
     
     def predict(self, X):
