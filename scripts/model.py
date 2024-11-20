@@ -108,6 +108,8 @@ class Model(ABC):
             res['val_metrics'] = val_metrics
             res['val_residual'] = val_data[residual_name]
             res['val_residual_mean'] = get_average_residual(val_data, mode)
+            res['val_residual_preds'] = y_val_pred
+            res['val_residual_actual'] = y_val
         return res
     
     def update_features(self, features):
