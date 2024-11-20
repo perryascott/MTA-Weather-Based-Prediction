@@ -16,11 +16,11 @@ def build_mta_df(subway_data_path, bus_data_path, weather_data_path):
 
     # For bus data
     hourly_bus_df['hour'] = pd.to_datetime(hourly_bus_df['hour'], utc=True)
-    hourly_bus_df['hour'] = hourly_bus_df['hour'].dt.tz_convert('America/New_York')
+    # hourly_bus_df['hour'] = hourly_bus_df['hour'].dt.tz_convert('America/New_York')
 
     # For subway data
     hourly_subway_df['hour'] = pd.to_datetime(hourly_subway_df['hour'], utc=True)
-    hourly_subway_df['hour'] = hourly_subway_df['hour'].dt.tz_convert('America/New_York')
+    # hourly_subway_df['hour'] = hourly_subway_df['hour'].dt.tz_convert('America/New_York')
 
     # Combine subway and bus hourly data
     hourly_subway_df['transportation'] = 'Subway'

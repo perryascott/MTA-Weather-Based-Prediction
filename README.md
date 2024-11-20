@@ -6,7 +6,8 @@ Medium Article discussing some of the results and methodologies [here](https://m
 
 ### TODO:
 create predict_ridership.ipynb notebook
-- debug why models are getting same results for different input features
-- Use more event based model that only considers situations that meet a condition (i.e. when precipitation > 0)
+- Take a look at what
+
+
+
 - Use residuals for certain weather metrics? (Only when temp diverges from norm by a lot)
-- Make a search for the best model type and the input parameters. The critieria should be lowest validation MAE (or RMSE) for certain conditions, select 12 conditions that show strong correlations based on the correlation data.
